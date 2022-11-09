@@ -1,7 +1,8 @@
 import yt
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
-import module
+#import module
+from cee_profile import module
 import numpy as np
 import  scipy
 from scipy.optimize import least_squares

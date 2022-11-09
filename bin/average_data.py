@@ -5,7 +5,8 @@ import numpy as np
 import  scipy
 from scipy.optimize import least_squares
 from dataclasses import dataclass
-import module
+#import module
+from cee_profile import module
 ####################### SETTINGS ############################
 
 nfiles = 1000            # number of output files to analyze
@@ -51,7 +52,7 @@ with open('average_data.txt','w') as ff:
 	ff.write('\n')
 for x in filename:
     try:
-        data = module.CreateDateStructure(x)
+        data = module.CreateDataStructure(x)
     except:
         continue
     Gas_radius = data['Gas_radius'][:Nstar]
