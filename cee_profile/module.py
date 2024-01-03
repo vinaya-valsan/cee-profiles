@@ -1,8 +1,9 @@
 import os
-import sys
 import yt
+import logging
 import numpy as np
 from dataclasses import dataclass
+import matplotlib.pyplot as plt
 
 
 class Constants:
@@ -61,7 +62,7 @@ class read_data:
 
         t = ds.current_time.in_units("day")
 
-        ## Radial and Tangential Velocity
+        # Radial and Tangential Velocity
         cm_coord = np.average(DM_coord, axis=0, weights=DM_mass)
         cm_vel = np.average(DM_vel, axis=0, weights=DM_mass)
         Gas_coord = Gas_coord_i - cm_coord
@@ -99,7 +100,6 @@ class read_data:
         data_dict["Gas_velocity_norm"] = Gas_Velocity_norm
         return data_dict
 
-
     def get_nstar(self, primary_radius) -> int:
         ds = yt.load(os.path.join(self.file_dir, "star.out.000001"))
         ad = ds.all_data()
@@ -110,88 +110,6 @@ class read_data:
         Nstar = int(r[r < Rgiant].size)
         return Nstar
 
-    def initial_rotation(self) -> float:
-        ds = yt.load(os.path.join(self.file_dir, "star.out.000001"))
-        ad = ds.all_data()
-
-        # RG core
-        RG_core_vel_vec = ad[("DarkMatter", "Velocities")][0].v
-        RG_core_mass = ad[("DarkMatter", "Mass")][0].v
-        RG_core_cord_vec = ad[("DarkMatter", "Coordinates")][0].v
-
-        # companion
-        Comp_core_vel_vec = ad[("DarkMatter", "Velocities")][1].v
-        Comp_core_mass = ad[("DarkMatter", "Mass")][1].v
-        Comp_core_cord_vec = ad[("DarkMatter", "Coordinates")][1].v
-
-        Comp_core_rel_cord_vec = (
-            Comp_core_cord_vec - RG_core_cord_vec
-        )  # relative coordinate of companion wrt RG core
-        Comp_core_radius = np.linalg.norm(
-            Comp_core_rel_cord_vec
-        )  # Radius of companion from RG core
-
-        r_hat = (
-            Comp_core_rel_cord_vec / Comp_core_radius
-        )  # unit vector in the radial direction from RG  core to companion
-
-        Comp_core_rel_velocity_vec = (
-            Comp_core_vel_vec - RG_core_vel_vec
-        )  # Relative velocity of Companion wrt to RG core
-        Comp_core_radial_velocity_vec = r_hat * np.dot(
-            r_hat, Comp_core_rel_velocity_vec
-        )  # Radial velocity vector of Companion wrt RG core
-        Comp_core_radial_velocity = np.linalg.norm(
-            Comp_core_radial_velocity_vec
-        )  # Radial velocity of companion wrt RG core
-        Comp_core_tangential_velocity_vec = (
-            Comp_core_rel_velocity_vec - Comp_core_radial_velocity_vec
-        )  # Tangential velocity vector of Companion wrt RG core
-        Comp_core_tangential_velocity = np.linalg.norm(
-            Comp_core_tangential_velocity_vec
-        )  # Tangential velocity of Companion wrt RG core
-
-        omega = (
-            Comp_core_tangential_velocity / Comp_core_radius
-        )  # orbital frequency
-
-        # star particles
-        Gas_coord_i = ad[
-            ("Gas", "Coordinates")
-        ].v  # coordinates of star particles
-        vx = ad[("Gas", "vx")].v
-        vy = ad[("Gas", "vy")].v
-        vz = ad[("Gas", "vz")].v
-        Gas_velocity = np.array((vx, vy, vz)).T  # velocity of star particles
-
-        Gas_coord = (
-            Gas_coord_i - RG_core_vel_vec
-        )  # relative coordinates star particles wrt RG core
-        Gas_radius = np.linalg.norm(
-            Gas_coord, axis=-1
-        )  # Radius of star particles from RG core
-        r_hat = np.divide(
-            Gas_coord, Gas_radius[:, np.newaxis]
-        )  # radial unit vector
-        vel_rel = (
-            Gas_velocity - RG_core_vel_vec[np.newaxis, :]
-        )  # relative velocity of star particles wrt RG core
-
-        RadialV_vec = np.multiply(
-            np.sum(r_hat * vel_rel, axis=-1)[:, np.newaxis], r_hat
-        )  # Relative radial velocity vector of star particles wrt RG core
-        Gas_RadialV = np.linalg.norm(
-            RadialV_vec, axis=-1
-        )  # Relative radial velocity of star particles wrt RG core
-        TangentialV_vec = (
-            vel_rel - RadialV_vec
-        )  # tangential velocty of star particles wrt RG core
-        Gas_TangentialV = np.linalg.norm(TangentialV_vec, axis=-1)
-
-        fr = Gas_TangentialV / (Gas_radius * omega)
-        self.fr = fr
-        self.omega = omega
-
     def average_quantities(self, startid, endid, stepsize=10) -> dict:
         id_list = np.arange(int(startid), int(endid) + stepsize, stepsize)
         fileid_list = ["{0:06d}".format(num) for num in id_list]
@@ -200,7 +118,8 @@ class read_data:
         for fileid in fileid_list:
             try:
                 full_data_dict[fileid] = self.CreateDataStructure(fileid)
-            except:
+            except Exception:
+                logging.exception(f"Failed to load DataStructure for {fileid}")
                 continue
 
         average_data = {}
