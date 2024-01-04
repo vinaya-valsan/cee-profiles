@@ -1,5 +1,6 @@
 import os
 import argparse
+import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 from glob import glob
@@ -31,15 +32,22 @@ parser.add_argument(
     "--interval", type=int, help="interval between output files", default=5
 )
 
+parser.add_argument(
+    "--fileid", action="append", help="file id to read", default=None
+)
+
 
 args = parser.parse_args()
 
 plt.switch_backend("agg")
 
+if args.fileid:
+    nfiles = len(args.fileid)
+else:
+    nfiles = args.nfiles
 
-nfiles = args.nfiles
-first = args.first
-interval = args.interval
+    first = args.first
+    interval = args.interval
 
 rundir = os.path.abspath(args.rundir)
 dataname = rundir + "/star.out."
@@ -54,8 +62,11 @@ with open("average_data.txt", "w") as ff:
     )
     ff.write("\n")
 for i in range(0, nfiles):
-    num = first + i * interval
-    x = "{0:06d}".format(num)
+    if args.fileid:
+        x = args.fileid[i]
+    else:
+        num = first + i * interval
+        x = "{0:06d}".format(num)
     fname = glob(dataname + x)
     if fname == []:
         continue
@@ -85,3 +96,51 @@ for i in range(0, nfiles):
         )
         ff.write(line)
         ff.write("\n")
+
+
+params = {
+    "backend": "agg",
+    "axes.labelsize": 24,  # fontsize for x and y labels (was 10)
+    "axes.titlesize": 24,
+    "axes.labelweight": "heavy",
+    "legend.fontsize": 18,  # was 10
+    "xtick.labelsize": 24,
+    "ytick.labelsize": 24,
+    "text.usetex": True,
+    "figure.figsize": [8, 6],
+    "figure.dpi": 300,
+    "savefig.dpi": 300,
+    "font.family": "serif",
+    "font.serif": ["Times"],
+    "font.weight": "heavy",
+    "font.size": 24,
+    "lines.linewidth": 2,
+}
+
+matplotlib.rcParams.update(params)
+
+(
+    Time,
+    AverageDensity,
+    AverageDensity_VolWgt,
+    AverageDensity_unb,
+    AverageDensity_VolWgt_unb,
+) = np.loadtxt(os.getcwd() + "/average_data.txt", skiprows=1, unpack=True)
+
+fig, ax = plt.subplots()  # figsize=(11,8))
+t0 = 100
+th = Time - t0
+mask = th > (2100 - t0)
+a, b = np.polyfit(th[mask] ** (-3), AverageDensity_VolWgt[mask], deg=1)
+t_sample = np.linspace(0, max(Time), 500)
+
+
+ax.plot(t_sample, b + a * t_sample ** (-3), "k--")
+sortid = np.argsort(Time)
+ax.plot(Time[sortid], AverageDensity_VolWgt[sortid])
+ax.set_xlabel(r"$t~(\rm d)$")
+ax.set_ylabel(r"$\bar{\rho}~(\rm g\,cm^{-3} )$")
+ax.set_yscale("log")
+fig.tight_layout()
+fig.savefig("AverageDensity_fit.png")
+fig.savefig("AverageDensity_fit.pdf")
