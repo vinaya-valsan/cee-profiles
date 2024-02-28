@@ -152,3 +152,26 @@ class read_data:
             axis=0,
         ) / len(full_data_dict.keys())
         return average_data
+
+    def get_full_radial_profile(self, fileid, radial_bins=None, weight_filed=None) -> dict:
+        data = self.CreateDataStructure(fileid)
+        Density = data['Gas_density']
+        Temperature = data['Gas_temperature'] 
+        Velocity = data['Gas_velocity'] 
+        IE = data['Gas_TotalE'] 
+        Radius = data['Gas_radius']
+        Volume = data['Gas_volume']
+
+        if not radial_bins:
+            radius_bins = 10.**np.arange(np.log10(min(Radius)),np.log10(max(Radius)),0.05)
+        RadialValues, Temperature_hist = CreateRadialProfile(Radius, Temperature,bins_x = radius_bins)
+        _, IE_hist = CreateRadialProfile(Radius, IE,bins_x = radius_bins)
+        _, Density_hist = CreateRadialProfile(Radius, Density,bins_x = radius_bins)
+
+        profile_dict = {}
+        profile_dict['Radius'] = RadialValues.tolist()
+        profile_dict['Temperature'] = Temperature_hist.tolist()
+        profile_dict['Density'] = Density_hist.tolist()
+        profile_dict['TotalIE'] = IE_hist.tolist()
+
+        return profile_dict
