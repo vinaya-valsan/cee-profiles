@@ -11,11 +11,12 @@ class Constants:
     Rsun = 7.0e10
 
 
-def CreateRadialProfile(data_x, data_y, bins_x, weight_field=None):
+def CreateRadialProfile(data_x, data_y, bins_x, weight_field=None, smooth=False):
     hist_y = np.zeros(len(bins_x) - 1)
-    hist_x = [
-        0.5 * (bins_x[i] + bins_x[i + 1]) for i in range(len(bins_x) - 1)
-    ]
+    #hist_x = [
+    #    0.5 * (bins_x[i] + bins_x[i + 1]) for i in range(len(bins_x) - 1)
+    #]
+    hist_x = bins_x
     for i in range(len(bins_x) - 1):
         bin_up = bins_x[i + 1]
         bin_low = bins_x[i]
@@ -32,7 +33,14 @@ def CreateRadialProfile(data_x, data_y, bins_x, weight_field=None):
             else:
                 hist_y[i] = hist_y[i] / sum(weight_field[indices_inside])
 
-    return np.array(hist_x), np.array(hist_y)
+    if smooth:
+        n=3
+        retun_hist_y = [no.average(hist_y[max(0,i-n):min(i+n,len(hist_y)-1])) for i in range(len(hist_y))]
+
+    else:
+        retun_hist_y = hist_y 
+
+    return np.array(hist_x), np.array(retun_hist_y)
 
 
 @dataclass
@@ -161,17 +169,21 @@ class read_data:
         IE = data['Gas_TotalE'] 
         Radius = data['Gas_radius']
         Volume = data['Gas_volume']
+        Mass = data['Gas_mass']
 
-        if not radial_bins:
+        if radial_bins is None:
             radius_bins = 10.**np.arange(np.log10(min(Radius)),np.log10(max(Radius)),0.05)
-        RadialValues, Temperature_hist = CreateRadialProfile(Radius, Temperature,bins_x = radius_bins)
-        _, IE_hist = CreateRadialProfile(Radius, IE,bins_x = radius_bins)
-        _, Density_hist = CreateRadialProfile(Radius, Density,bins_x = radius_bins)
+        else:
+            RadialValues, Temperature_hist = CreateRadialProfile(Radius, Temperature,bins_x = radius_bins, weight_field=Mass)
+            _, IE_hist = CreateRadialProfile(Radius, IE,bins_x = radius_bins, weight_field=Mass)
+            _, Velocity_hist = CreateRadialProfile(Radius, Velocity,bins_x = radius_bins, weight_field=Mass)
+            _, Density_hist = CreateRadialProfile(Radius, Density,bins_x = radius_bins,weight_field=Volume )
 
         profile_dict = {}
-        profile_dict['Radius'] = RadialValues.tolist()
-        profile_dict['Temperature'] = Temperature_hist.tolist()
-        profile_dict['Density'] = Density_hist.tolist()
-        profile_dict['TotalIE'] = IE_hist.tolist()
+        profile_dict['Radius'] = RadialValues
+        profile_dict['Temperature'] = Temperature_hist
+        profile_dict['Density'] = Density_hist
+        profile_dict['TotalIE'] = IE_hist
+        profile_dict['Velocity'] = Velocity_hist
 
         return profile_dict
