@@ -11,11 +11,13 @@ class Constants:
     Rsun = 7.0e10
 
 
-def CreateRadialProfile(data_x, data_y, bins_x, weight_field=None, smooth=False):
+def CreateRadialProfile(
+    data_x, data_y, bins_x, weight_field=None, smooth=False
+):
     hist_y = np.zeros(len(bins_x) - 1)
-    #hist_x = [
+    # hist_x = [
     #    0.5 * (bins_x[i] + bins_x[i + 1]) for i in range(len(bins_x) - 1)
-    #]
+    # ]
     hist_x = bins_x
     for i in range(len(bins_x) - 1):
         bin_up = bins_x[i + 1]
@@ -34,11 +36,15 @@ def CreateRadialProfile(data_x, data_y, bins_x, weight_field=None, smooth=False)
                 hist_y[i] = hist_y[i] / sum(weight_field[indices_inside])
 
     if smooth:
-        n=3
-        retun_hist_y = [no.average(hist_y[max(0,i-n):min(i+n,len(hist_y)-1])) for i in range(len(hist_y))]
+        n = smooth
+        retun_hist_y = [
+            np.average(
+                hist_y[max(0, i - n) : min(i + n, len(hist_y) - 1)])
+                for i in range(len(hist_y))
+        ]
 
     else:
-        retun_hist_y = hist_y 
+        retun_hist_y = hist_y
 
     return np.array(hist_x), np.array(retun_hist_y)
 
@@ -161,29 +167,57 @@ class read_data:
         ) / len(full_data_dict.keys())
         return average_data
 
-    def get_full_radial_profile(self, fileid, radial_bins=None, weight_filed=None) -> dict:
+    def get_full_radial_profile(
+        self, fileid, radial_bins=None, weight_field="default", smooth=None
+    ) -> dict:
         data = self.CreateDataStructure(fileid)
-        Density = data['Gas_density']
-        Temperature = data['Gas_temperature'] 
-        Velocity = data['Gas_velocity'] 
-        IE = data['Gas_TotalE'] 
-        Radius = data['Gas_radius']
-        Volume = data['Gas_volume']
-        Mass = data['Gas_mass']
+        Density = data["Gas_density"]
+        Temperature = data["Gas_temperature"]
+        Velocity = data["Gas_RadialV"]
+        IE = data["Gas_TotalE"]
+        Radius = data["Gas_radius"]
+        Volume = data["Gas_volume"]
+        Mass = data["Gas_mass"]
 
         if radial_bins is None:
-            radius_bins = 10.**np.arange(np.log10(min(Radius)),np.log10(max(Radius)),0.05)
-        else:
-            RadialValues, Temperature_hist = CreateRadialProfile(Radius, Temperature,bins_x = radius_bins, weight_field=Mass)
-            _, IE_hist = CreateRadialProfile(Radius, IE,bins_x = radius_bins, weight_field=Mass)
-            _, Velocity_hist = CreateRadialProfile(Radius, Velocity,bins_x = radius_bins, weight_field=Mass)
-            _, Density_hist = CreateRadialProfile(Radius, Density,bins_x = radius_bins,weight_field=Volume )
+            radial_bins = 10.0 ** np.arange(
+                np.log10(min(Radius)), np.log10(max(Radius)), 0.05
+            )
+        if weight_field == "default":
+            RadialValues, Temperature_hist = CreateRadialProfile(
+                Radius,
+                Temperature,
+                bins_x=radial_bins,
+                weight_field=Mass,
+                smooth=smooth,
+            )
+            _, IE_hist = CreateRadialProfile(
+                Radius,
+                IE,
+                bins_x=radial_bins,
+                weight_field=Mass,
+                smooth=smooth,
+            )
+            _, Velocity_hist = CreateRadialProfile(
+                Radius,
+                Velocity,
+                bins_x=radial_bins,
+                weight_field=Mass,
+                smooth=smooth,
+            )
+            _, Density_hist = CreateRadialProfile(
+                Radius,
+                Density,
+                bins_x=radial_bins,
+                weight_field=Volume,
+                smooth=smooth,
+            )
 
         profile_dict = {}
-        profile_dict['Radius'] = RadialValues
-        profile_dict['Temperature'] = Temperature_hist
-        profile_dict['Density'] = Density_hist
-        profile_dict['TotalIE'] = IE_hist
-        profile_dict['Velocity'] = Velocity_hist
+        profile_dict["Radius"] = RadialValues.tolist()
+        profile_dict["Temperature"] = Temperature_hist.tolist()
+        profile_dict["Density"] = Density_hist.tolist()
+        profile_dict["TotalIE"] = IE_hist.tolist()
+        profile_dict["Velocity"] = Velocity_hist.tolist()
 
         return profile_dict
